@@ -128,10 +128,8 @@ impl<B: UsbBus, I> UsbHidClass<B, I> {
         match DescriptorType::from_primitive((request.value >> 8) as u8) {
             Some(DescriptorType::Report) => {
                 match transfer.accept_with(interface.report_descriptor()) {
-                    Err(e) => error!("Failed to send report descriptor - {:?}", e),
-                    Ok(_) => {
-                        trace!("Sent report descriptor")
-                    }
+                    Err(e) => {},
+                    Ok(_) => {}
                 }
             }
             Some(DescriptorType::Hid) => {
@@ -141,18 +139,12 @@ impl<B: UsbBus, I> UsbHidClass<B, I> {
                 (buffer[2..]).copy_from_slice(&interface.hid_descriptor_body());
                 match transfer.accept_with(&buffer) {
                     Err(e) => {
-                        error!("Failed to send Hid descriptor - {:?}", e);
                     }
                     Ok(_) => {
-                        trace!("Sent hid descriptor")
                     }
                 }
             }
             _ => {
-                warn!(
-                    "Unsupported descriptor type, request type:{:X?}, request:{:X}, value:{:X}",
-                    request.request_type, request.request, request.value
-                );
             }
         }
     }
@@ -165,7 +157,6 @@ where
 {
     fn get_configuration_descriptors(&self, writer: &mut DescriptorWriter) -> Result<()> {
         self.interfaces.write_descriptors(writer)?;
-        info!("wrote class config descriptor");
         Ok(())
     }
 
@@ -174,7 +165,6 @@ where
     }
 
     fn reset(&mut self) {
-        info!("Reset");
         self.interfaces.reset();
     }
 
@@ -198,13 +188,6 @@ where
 
         let interface = interface.unwrap();
 
-        trace!(
-            "ctrl_out: request type: {:?}, request: {:X}, value: {:X}",
-            request.request_type,
-            request.request,
-            request.value
-        );
-
         match HidRequest::from_primitive(request.request) {
             Some(HidRequest::SetReport) => {
                 interface.set_report(transfer.data()).ok();
@@ -212,10 +195,6 @@ where
             }
             Some(HidRequest::SetIdle) => {
                 if request.length != 0 {
-                    warn!(
-                        "Expected SetIdle to have length 0, received {:X}",
-                        request.length
-                    );
                 }
 
                 interface.set_idle((request.value & 0xFF) as u8, (request.value >> 8) as u8);
@@ -223,26 +202,15 @@ where
             }
             Some(HidRequest::SetProtocol) => {
                 if request.length != 0 {
-                    warn!(
-                        "Expected SetProtocol to have length 0, received {:X}",
-                        request.length
-                    );
                 }
                 if let Some(protocol) = HidProtocol::from_primitive((request.value & 0xFF) as u8) {
                     interface.set_protocol(protocol);
                     transfer.accept().ok();
                 } else {
-                    error!(
-                        "Unable to set protocol, unsupported value:{:X}",
-                        request.value
-                    );
                 }
             }
             _ => {
-                warn!(
-                    "Unsupported control_out request type: {:?}, request: {:X}, value: {:X}",
-                    request.request_type, request.request, request.value
-                );
+
             }
         }
     }
@@ -261,13 +229,6 @@ where
         }
         let interface_id = interface_id.unwrap();
 
-        trace!(
-            "ctrl_in: request type: {:?}, request: {:X}, value: {:X}",
-            request.request_type,
-            request.request,
-            request.value
-        );
-
         match request.request_type {
             RequestType::Standard => {
                 let interface = self.interfaces.get_id(interface_id);
@@ -278,7 +239,6 @@ where
                 let interface = interface.unwrap();
 
                 if request.request == Request::GET_DESCRIPTOR {
-                    info!("Get descriptor");
                     Self::get_descriptor(transfer, interface);
                 }
             }
@@ -296,16 +256,10 @@ where
                         let mut data = [0_u8; 64];
                         if let Ok(n) = interface.get_report(&mut data) {
                             if n != transfer.request().length as usize {
-                                warn!(
-                                    "GetReport expected {:X} bytes, got {:X} bytes",
-                                    transfer.request().length,
-                                    data.len()
-                                );
                             }
                             match transfer.accept_with(&data[..n]) {
-                                Err(e) => error!("Failed to send report - {:?}", e),
+                                Err(e) => {},
                                 Ok(()) => {
-                                    trace!("Sent report, {:X} bytes", n);
                                     interface.get_report_ack().unwrap();
                                 }
                             }
@@ -313,38 +267,28 @@ where
                     }
                     Some(HidRequest::GetIdle) => {
                         if request.length != 1 {
-                            warn!(
-                                "Expected GetIdle to have length 1, received {:X}",
-                                request.length
-                            );
                         }
 
                         let report_id = (request.value & 0xFF) as u8;
                         let idle = interface.get_idle(report_id);
                         match transfer.accept_with(&[idle]) {
-                            Err(e) => error!("Failed to send idle data - {:?}", e),
-                            Ok(_) => info!("Get Idle for ID{:X}: {:X}", report_id, idle),
+                            Err(e) => {},
+                            Ok(_) => {},
                         }
                     }
                     Some(HidRequest::GetProtocol) => {
                         if request.length != 1 {
-                            warn!(
-                                "Expected GetProtocol to have length 1, received {:X}",
-                                request.length
-                            );
+
                         }
 
                         let protocol = interface.get_protocol();
                         match transfer.accept_with(&[protocol as u8]) {
-                            Err(e) => error!("Failed to send protocol data - {:?}", e),
-                            Ok(_) => info!("Get protocol: {:?}", protocol),
+                            Err(e) => {},
+                            Ok(_) => {},
                         }
                     }
                     _ => {
-                        warn!(
-                            "Unsupported control_in request type: {:?}, request: {:X}, value: {:X}",
-                            request.request_type, request.request, request.value
-                        );
+
                     }
                 }
             }

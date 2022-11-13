@@ -36,10 +36,10 @@ pub struct MultipleConsumerReport {
 }
 
 ///Fixed functionality consumer control report descriptor
-/// 
+///
 /// Based on [Logitech Gaming Keyboard](http://www.usblyzer.com/reports/usb-properties/usb-keyboard.html)
 /// dumped by [USBlyzer](http://www.usblyzer.com/)
-/// 
+///
 /// Single bit packed `u8` report
 /// * Bit 0 - Scan Next Track
 /// * Bit 1 - Scan Previous Track
@@ -51,24 +51,24 @@ pub struct MultipleConsumerReport {
 /// * Bit 7 - Reserved
 #[rustfmt::skip]
 pub const FIXED_FUNCTION_REPORT_DESCRIPTOR: &[u8] = &[
-    0x05, 0x0C, //        Usage Page (Consumer Devices)  
-    0x09, 0x01, //        Usage (Consumer Control)  
-    0xA1, 0x01, //        Collection (Application)  
-    0x05, 0x0C, //            Usage Page (Consumer Devices)  
-    0x15, 0x00, //            Logical Minimum (0)  
-    0x25, 0x01, //            Logical Maximum (1)  
-    0x75, 0x01, //            Report Size (1)  
-    0x95, 0x07, //            Report Count (7)  
-    0x09, 0xB5, //            Usage (Scan Next Track)  
-    0x09, 0xB6, //            Usage (Scan Previous Track)  
-    0x09, 0xB7, //            Usage (Stop)  
-    0x09, 0xCD, //            Usage (Play/Pause)  
-    0x09, 0xE2, //            Usage (Mute)  
-    0x09, 0xE9, //            Usage (Volume Increment)  
-    0x09, 0xEA, //            Usage (Volume Decrement)  
-    0x81, 0x02, //            Input (Data,Var,Abs,NWrp,Lin,Pref,NNul,Bit)  
-    0x95, 0x01, //            Report Count (1)  
-    0x81, 0x01, //            Input (Const,Ary,Abs)  
+    0x05, 0x0C, //        Usage Page (Consumer Devices)
+    0x09, 0x01, //        Usage (Consumer Control)
+    0xA1, 0x01, //        Collection (Application)
+    0x05, 0x0C, //            Usage Page (Consumer Devices)
+    0x15, 0x00, //            Logical Minimum (0)
+    0x25, 0x01, //            Logical Maximum (1)
+    0x75, 0x01, //            Report Size (1)
+    0x95, 0x07, //            Report Count (7)
+    0x09, 0xB5, //            Usage (Scan Next Track)
+    0x09, 0xB6, //            Usage (Scan Previous Track)
+    0x09, 0xB7, //            Usage (Stop)
+    0x09, 0xCD, //            Usage (Play/Pause)
+    0x09, 0xE2, //            Usage (Mute)
+    0x09, 0xE9, //            Usage (Volume Increment)
+    0x09, 0xEA, //            Usage (Volume Decrement)
+    0x81, 0x02, //            Input (Data,Var,Abs,NWrp,Lin,Pref,NNul,Bit)
+    0x95, 0x01, //            Report Count (1)
+    0x81, 0x01, //            Input (Const,Ary,Abs)
     0xC0, //        End Collection
 ];
 
@@ -98,7 +98,6 @@ pub struct ConsumerControlInterface<'a, B: UsbBus> {
 impl<'a, B: UsbBus> ConsumerControlInterface<'a, B> {
     pub fn write_report(&self, report: &MultipleConsumerReport) -> usb_device::Result<usize> {
         let data = report.pack().map_err(|e| {
-            error!("Error packing MultipleConsumerReport: {:?}", e);
             UsbError::ParseError
         })?;
         self.inner.write_report(&data)
@@ -151,7 +150,6 @@ pub struct ConsumerControlFixedInterface<'a, B: UsbBus> {
 impl<'a, B: UsbBus> ConsumerControlFixedInterface<'a, B> {
     pub fn write_report(&self, report: &FixedFunctionReport) -> usb_device::Result<usize> {
         let data = report.pack().map_err(|e| {
-            error!("Error packing MultipleConsumerReport: {:?}", e);
             UsbError::ParseError
         })?;
         self.inner.write_report(&data)

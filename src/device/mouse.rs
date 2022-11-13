@@ -123,7 +123,6 @@ pub struct BootMouseInterface<'a, B: UsbBus> {
 impl<'a, B: UsbBus> BootMouseInterface<'a, B> {
     pub fn write_report(&self, report: &BootMouseReport) -> Result<(), UsbHidError> {
         let data = report.pack().map_err(|e| {
-            error!("Error packing BootMouseReport: {:?}", e);
             UsbHidError::SerializationError
         })?;
         self.inner
@@ -177,7 +176,6 @@ pub struct WheelMouseInterface<'a, B: UsbBus> {
 impl<'a, B: UsbBus> WheelMouseInterface<'a, B> {
     pub fn write_report(&self, report: &WheelMouseReport) -> Result<(), UsbHidError> {
         let data = report.pack().map_err(|e| {
-            error!("Error packing WheelMouseReport: {:?}", e);
             UsbHidError::SerializationError
         })?;
         self.inner
