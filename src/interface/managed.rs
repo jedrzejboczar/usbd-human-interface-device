@@ -12,7 +12,7 @@ use usb_device::UsbError;
 use crate::interface::raw::{RawInterface, RawInterfaceConfig};
 use crate::interface::InterfaceNumber;
 use crate::interface::{HidProtocol, UsbAllocatable};
-use crate::interface::{InterfaceClass, WrappedInterface};
+use crate::interface::{InterfaceClass, AsInterfaceClass, WrappedInterface};
 use crate::UsbHidError;
 
 pub struct IdleManager<R> {
@@ -164,6 +164,24 @@ where
         }
     }
 }
+
+impl<'a, B: UsbBus, R> AsInterfaceClass<'a> for ManagedInterface<'a, B, R>
+where
+    R: Copy + Eq,
+{
+    fn class_mut(&mut self) -> &mut dyn InterfaceClass<'a> {
+        self
+    }
+
+    fn class(&self) -> &dyn InterfaceClass<'a> {
+        self
+    }
+
+    fn get_string(&self, index: StringIndex, _lang_id: u16) -> Option<&'_ str> {
+        self.inner.get_string(index, _lang_id)
+    }
+}
+
 
 impl<'a, B: UsbBus, R> WrappedInterface<'a, B, RawInterface<'a, B>, ()>
     for ManagedInterface<'a, B, R>

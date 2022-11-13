@@ -9,7 +9,7 @@ use usb_device::{Result, UsbError};
 
 use crate::hid_class::prelude::*;
 use crate::interface::raw::{RawInterface, RawInterfaceConfig};
-use crate::interface::{InterfaceClass, WrappedInterface, WrappedInterfaceConfig};
+use crate::interface::{InterfaceClass, WrappedInterface, WrappedInterfaceConfig, AsInterfaceClass};
 use crate::page::Consumer;
 
 ///Consumer control report descriptor - Four `u16` consumer control usage codes as an array (8 bytes)
@@ -116,22 +116,17 @@ impl<'a, B: UsbBus> ConsumerControlInterface<'a, B> {
     }
 }
 
-impl<'a, B: UsbBus> InterfaceClass<'a> for ConsumerControlInterface<'a, B> {
-    delegate! {
-        to self.inner{
-           fn report_descriptor(&self) -> &'_ [u8];
-           fn id(&self) -> InterfaceNumber;
-           fn write_descriptors(&self, writer: &mut DescriptorWriter) -> usb_device::Result<()>;
-           fn get_string(&self, index: StringIndex, _lang_id: u16) -> Option<&'_ str>;
-           fn reset(&mut self);
-           fn set_report(&mut self, data: &[u8]) -> Result<()>;
-           fn get_report(&mut self, data: &mut [u8]) -> Result<usize>;
-           fn get_report_ack(&mut self) -> Result<()>;
-           fn set_idle(&mut self, report_id: u8, value: u8);
-           fn get_idle(&self, report_id: u8) -> u8;
-           fn set_protocol(&mut self, protocol: HidProtocol);
-           fn get_protocol(&self) -> HidProtocol;
-        }
+impl<'a, B: UsbBus> AsInterfaceClass<'a> for ConsumerControlInterface<'a, B> {
+    fn class_mut(&mut self) -> &mut dyn InterfaceClass<'a> {
+        &mut self.inner
+    }
+
+    fn class(&self) -> &dyn InterfaceClass<'a> {
+        &self.inner
+    }
+
+    fn get_string(&self, index: StringIndex, _lang_id: u16) -> Option<&'_ str> {
+        self.inner.get_string(index, _lang_id)
     }
 }
 
@@ -168,22 +163,17 @@ impl<'a, B: UsbBus> ConsumerControlFixedInterface<'a, B> {
     }
 }
 
-impl<'a, B: UsbBus> InterfaceClass<'a> for ConsumerControlFixedInterface<'a, B> {
-    delegate! {
-        to self.inner{
-           fn report_descriptor(&self) -> &'_ [u8];
-           fn id(&self) -> InterfaceNumber;
-           fn write_descriptors(&self, writer: &mut DescriptorWriter) -> usb_device::Result<()>;
-           fn get_string(&self, index: StringIndex, _lang_id: u16) -> Option<&'_ str>;
-           fn reset(&mut self);
-           fn set_report(&mut self, data: &[u8]) -> Result<()>;
-           fn get_report(&mut self, data: &mut [u8]) -> Result<usize>;
-           fn get_report_ack(&mut self) -> Result<()>;
-           fn set_idle(&mut self, report_id: u8, value: u8);
-           fn get_idle(&self, report_id: u8) -> u8;
-           fn set_protocol(&mut self, protocol: HidProtocol);
-           fn get_protocol(&self) -> HidProtocol;
-        }
+impl<'a, B: UsbBus> AsInterfaceClass<'a> for ConsumerControlFixedInterface<'a, B> {
+    fn class_mut(&mut self) -> &mut dyn InterfaceClass<'a> {
+        &mut self.inner
+    }
+
+    fn class(&self) -> &dyn InterfaceClass<'a> {
+        &self.inner
+    }
+
+    fn get_string(&self, index: StringIndex, _lang_id: u16) -> Option<&'_ str> {
+        self.inner.get_string(index, _lang_id)
     }
 }
 

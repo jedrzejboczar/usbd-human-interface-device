@@ -1,7 +1,7 @@
 //! Abstract Human Interface Device Class for implementing any HID compliant device
 
 use crate::interface::InterfaceHList;
-use crate::interface::{InterfaceClass, UsbAllocatable};
+use crate::interface::{InterfaceClass, AsInterfaceClass, UsbAllocatable};
 use core::default::Default;
 use core::marker::PhantomData;
 use descriptor::*;
@@ -74,7 +74,7 @@ impl<'a, B: UsbBus, I: HList> UsbHidClassBuilder<'a, B, I> {
     ) -> UsbHidClassBuilder<'a, B, HCons<Conf, I>>
     where
         Conf: UsbAllocatable<'a, B, Allocated = Class>,
-        Class: InterfaceClass<'a>,
+        Class: AsInterfaceClass<'a>,
     {
         UsbHidClassBuilder {
             interface_list: self.interface_list.prepend(interface_config),

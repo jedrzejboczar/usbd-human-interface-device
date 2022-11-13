@@ -86,6 +86,12 @@ pub trait InterfaceClass<'a> {
     }
 }
 
+pub trait AsInterfaceClass<'a> {
+    fn class_mut(&mut self) -> &mut dyn InterfaceClass<'a>;
+    fn class(&self) -> &dyn InterfaceClass<'a>;
+    fn get_string(&self, index: StringIndex, _lang_id: u16) -> Option<&'_ str>;
+}
+
 pub trait InterfaceHList<'a>: ToRef<'a> {
     fn get_id_mut(&mut self, id: u8) -> Option<&mut dyn InterfaceClass<'a>>;
     fn get_id(&self, id: u8) -> Option<&dyn InterfaceClass<'a>>;
@@ -115,33 +121,33 @@ impl<'a> InterfaceHList<'a> for HNil {
     }
 }
 
-impl<'a, Head: InterfaceClass<'a> + 'a, Tail: InterfaceHList<'a>> InterfaceHList<'a>
+impl<'a, Head: AsInterfaceClass<'a> + 'a, Tail: InterfaceHList<'a>> InterfaceHList<'a>
     for HCons<Head, Tail>
 {
     #[inline(always)]
     fn get_id_mut(&mut self, id: u8) -> Option<&mut dyn InterfaceClass<'a>> {
-        if id == u8::from(self.head.id()) {
-            Some(&mut self.head)
+        if id == u8::from(self.head.class().id()) {
+            Some(self.head.class_mut())
         } else {
             self.tail.get_id_mut(id)
         }
     }
     #[inline(always)]
     fn get_id(&self, id: u8) -> Option<&dyn InterfaceClass<'a>> {
-        if id == u8::from(self.head.id()) {
-            Some(&self.head)
+        if id == u8::from(self.head.class().id()) {
+            Some(self.head.class())
         } else {
             self.tail.get_id(id)
         }
     }
     #[inline(always)]
     fn reset(&mut self) {
-        self.head.reset();
+        self.head.class_mut().reset();
         self.tail.reset();
     }
     #[inline(always)]
     fn write_descriptors(&self, writer: &mut DescriptorWriter) -> usb_device::Result<()> {
-        self.head.write_descriptors(writer)?;
+        self.head.class().write_descriptors(writer)?;
         self.tail.write_descriptors(writer)
     }
     #[inline(always)]
@@ -155,7 +161,7 @@ impl<'a, Head: InterfaceClass<'a> + 'a, Tail: InterfaceHList<'a>> InterfaceHList
     }
 }
 
-pub trait WrappedInterface<'a, B, I, Config = ()>: Sized + InterfaceClass<'a>
+pub trait WrappedInterface<'a, B, I, Config = ()>: Sized + AsInterfaceClass<'a>
 where
     B: UsbBus,
     I: InterfaceClass<'a>,
