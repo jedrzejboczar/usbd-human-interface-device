@@ -5,6 +5,7 @@ use embedded_time::duration::Milliseconds;
 use packed_struct::prelude::*;
 use usb_device::class_prelude::*;
 use usb_device::UsbError;
+use usbd_hid::descriptor::generator_prelude::*;
 
 use crate::hid_class::prelude::*;
 use crate::interface::managed::{ManagedInterface, ManagedInterfaceConfig};
@@ -142,6 +143,30 @@ pub struct BootKeyboardReport {
     pub left_ctrl: bool,
     #[packed_field(bytes = "2..8", ty = "enum", element_size_bytes = "1")]
     pub keys: [Keyboard; 6],
+}
+
+#[gen_hid_descriptor(
+    (collection = APPLICATION, usage_page = GENERIC_DESKTOP, usage = KEYBOARD) = {
+        (usage_page = KEYBOARD, usage_min = 0xE0, usage_max = 0xE7) = {
+            #[packed_bits 8] #[item_settings data,variable,absolute] modifier=input;
+        };
+        (usage_min = 0x00, usage_max = 0xFF) = {
+            #[item_settings constant,variable,absolute] reserved=input;
+        };
+        (usage_page = LEDS, usage_min = 0x01, usage_max = 0x05) = {
+            #[packed_bits 5] #[item_settings data,variable,absolute] leds=output;
+        };
+        (usage_page = KEYBOARD, usage_min = 0x00, usage_max = 0xFF) = {
+            #[item_settings data,array,absolute] keys=input;
+        };
+    }
+)]
+#[derive(Default, Eq, PartialEq)]
+pub struct BootKeyboardReportNew {
+    pub modifier: u8,
+    pub reserved: u8,
+    pub leds: u8,
+    pub keys: [u8; 6],
 }
 
 impl BootKeyboardReport {
@@ -324,6 +349,34 @@ pub struct NKROBootKeyboardReport {
     pub boot_keys: [Keyboard; 6],
     //The usb lsb/lsb0 expected ordering isn't compatible with pact structs
     #[packed_field(bytes = "8..25", element_size_bits = "8")]
+    pub nkro_keys: [u8; 17],
+}
+
+#[gen_hid_descriptor(
+    (collection = APPLICATION, usage_page = GENERIC_DESKTOP, usage = KEYBOARD) = {
+        (usage_page = KEYBOARD, usage_min = 0xE0, usage_max = 0xE7) = {
+            #[packed_bits 8] #[item_settings data,variable,absolute] modifier=input;
+        };
+        (usage_min = 0x00, usage_max = 0xFF) = {
+            #[item_settings constant,variable,absolute] reserved=input;
+        };
+        (usage_page = LEDS, usage_min = 0x01, usage_max = 0x05) = {
+            #[packed_bits 5] #[item_settings data,variable,absolute] leds=output;
+        };
+        (usage_page = KEYBOARD, usage_min = 0x00, usage_max = 0xFF) = {
+            #[item_settings data,array,absolute] boot_keys=input;
+        };
+        (usage_page = KEYBOARD, usage_min = 0x00, usage_max = 0x87) = {
+            #[packed_bits 136] #[item_settings data,variable,absolute] nkro_keys=input;
+        };
+    }
+)]
+#[derive(Default, Eq, PartialEq)]
+pub struct NKROBootKeyboardReportNew {
+    pub modifier: u8,
+    pub reserved: u8,
+    pub leds: u8,
+    pub boot_keys: [u8; 6],
     pub nkro_keys: [u8; 17],
 }
 
@@ -528,9 +581,10 @@ pub const NKRO_COMPACT_KEYBOARD_REPORT_DESCRIPTOR: &[u8] = &[
 
 #[cfg(test)]
 mod test {
-    use packed_struct::prelude::*;
+    use super::*;
+    use ssmarshal::serialize;
 
-    use crate::device::keyboard::{BootKeyboardReport, KeyboardLedsReport};
+    use crate::device::keyboard::{BootKeyboardReport, KeyboardLedsReport, BootKeyboardReportNew};
     use crate::page::Keyboard;
 
     #[test]
@@ -659,5 +713,129 @@ mod test {
                 Keyboard::ErrorRollOver as u8,
             ]
         );
+    }
+
+    #[test]
+    fn boot_keyboard_report_ser() {
+        use Keyboard::*;
+        let report = BootKeyboardReportNew {
+            modifier: 0b0001_0100,
+            reserved: 0,
+            leds: 0,
+            keys: [A as u8, B as u8, C as u8, D as u8, 0, 0],
+        };
+        let mut buf = [0u8; 8];
+        let size = serialize(&mut buf, &report).unwrap();
+        assert_eq!(size, 8);
+        assert_eq!(&buf[..size], &[0b0001_0100, 0, 4, 5, 6, 7, 0, 0]);
+    }
+
+    #[test]
+    fn boot_keyboard_report_descriptor() {
+        let expected = &[
+            0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
+            0x09, 0x06,        // Usage (Keyboard)
+            0xA1, 0x01,        // Collection (Application)
+            0x05, 0x07,        //   Usage Page (Kbrd/Keypad)
+            0x19, 0xE0,        //   Usage Minimum (0xE0)
+            0x29, 0xE7,        //   Usage Maximum (0xE7)
+            0x15, 0x00,        //   Logical Minimum (0)
+            0x25, 0x01,        //   Logical Maximum (1)
+            0x75, 0x01,        //   Report Size (1)
+            0x95, 0x08,        //   Report Count (8)
+            0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+            0x19, 0x00,        //   Usage Minimum (0x00)
+            0x29, 0xFF,        //   Usage Maximum (0xFF)
+            0x26, 0xFF, 0x00,  //   Logical Maximum (255)
+            0x75, 0x08,        //   Report Size (8)
+            0x95, 0x01,        //   Report Count (1)
+            0x81, 0x03,        //   Input (Const,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+            0x05, 0x08,        //   Usage Page (LEDs)
+            0x19, 0x01,        //   Usage Minimum (Num Lock)
+            0x29, 0x05,        //   Usage Maximum (Kana)
+            0x25, 0x01,        //   Logical Maximum (1)
+            0x75, 0x01,        //   Report Size (1)
+            0x95, 0x05,        //   Report Count (5)
+            0x91, 0x02,        //   Output (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+            0x95, 0x03,        //   Report Count (3)
+            0x91, 0x03,        //   Output (Const,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+            0x05, 0x07,        //   Usage Page (Kbrd/Keypad)
+            0x19, 0x00,        //   Usage Minimum (0x00)
+            0x29, 0xFF,        //   Usage Maximum (0xFF)
+            0x26, 0xFF, 0x00,  //   Logical Maximum (255)
+            0x75, 0x08,        //   Report Size (8)
+            0x95, 0x06,        //   Report Count (6)
+            0x81, 0x00,        //   Input (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+            0xC0,              // End Collection
+        ];
+        assert_eq!(BootKeyboardReportNew::desc(), expected);
+    }
+
+    #[test]
+    fn nkro_boot_keyboard_report_ser() {
+        use Keyboard::*;
+        let report = NKROBootKeyboardReportNew {
+            modifier: 0b0001_0100,
+            reserved: 0,
+            leds: 0,
+            boot_keys: [A as u8, B as u8, C as u8, D as u8, 0, 0],
+            nkro_keys: [0x10, 0, 0, 0, 0, 0, 0, 0, 0x04, 0, 0, 0, 0, 0, 0, 0x20, 0],
+        };
+        let mut buf = [0u8; 8 + 17];
+        let size = serialize(&mut buf, &report).unwrap();
+        assert_eq!(size, 8 + 17);
+        assert_eq!(&buf[..size], &[
+            0b0001_0100, 0,
+            4, 5, 6, 7, 0, 0,
+            0x10, 0, 0, 0, 0, 0, 0, 0, 0x04, 0, 0, 0, 0, 0, 0, 0x20, 0,
+        ]);
+    }
+
+    #[test]
+    fn nkro_boot_keyboard_report_descriptor() {
+        let expected = &[
+            0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
+            0x09, 0x06,        // Usage (Keyboard)
+            0xA1, 0x01,        // Collection (Application)
+            0x05, 0x07,        //   Usage Page (Kbrd/Keypad)
+            0x19, 0xE0,        //   Usage Minimum (0xE0)
+            0x29, 0xE7,        //   Usage Maximum (0xE7)
+            0x15, 0x00,        //   Logical Minimum (0)
+            0x25, 0x01,        //   Logical Maximum (1)
+            0x75, 0x01,        //   Report Size (1)
+            0x95, 0x08,        //   Report Count (8)
+            0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+            0x19, 0x00,        //   Usage Minimum (0x00)
+            0x29, 0xFF,        //   Usage Maximum (0xFF)
+            0x26, 0xFF, 0x00,  //   Logical Maximum (255)
+            0x75, 0x08,        //   Report Size (8)
+            0x95, 0x01,        //   Report Count (1)
+            0x81, 0x03,        //   Input (Const,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+            0x05, 0x08,        //   Usage Page (LEDs)
+            0x19, 0x01,        //   Usage Minimum (Num Lock)
+            0x29, 0x05,        //   Usage Maximum (Kana)
+            0x25, 0x01,        //   Logical Maximum (1)
+            0x75, 0x01,        //   Report Size (1)
+            0x95, 0x05,        //   Report Count (5)
+            0x91, 0x02,        //   Output (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+            0x95, 0x03,        //   Report Count (3)
+            0x91, 0x03,        //   Output (Const,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+            0x05, 0x07,        //   Usage Page (Kbrd/Keypad)
+            0x19, 0x00,        //   Usage Minimum (0x00)
+            0x29, 0xFF,        //   Usage Maximum (0xFF)
+            0x26, 0xFF, 0x00,  //   Logical Maximum (255)
+            0x75, 0x08,        //   Report Size (8)
+            0x95, 0x06,        //   Report Count (6)
+            0x81, 0x00,        //   Input (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+            0x05, 0x07,        //   Usage Page (Kbrd/Keypad)
+            0x19, 0x00,        //   Usage Minimum (0x00)
+            0x29, 0x87,        //   Usage Maximum (0x87)
+            0x25, 0x01,        //   Logical Maximum (1)
+            0x75, 0x01,        //   Report Size (1)
+            0x95, 0x88,        //   Report Count (-120)
+            0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+            0xC0,              // End Collection
+        ];
+        assert_eq!(NKROBootKeyboardReportNew::desc(), expected);
     }
 }

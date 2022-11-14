@@ -21,6 +21,11 @@ frunk = { version = "0.4", default-features = false }
 delegate = "0.8"
 num_enum = { version = "0.5", default-features = false }
 
+# usbd-hid = { path = "../usbd-hid" }
+usbd-hid = { version = "0.6" }
+serde = { version = "1.0", default-features = false }
+ssmarshal = { version = "1.0", default-features = false }
+
 [dev-dependencies]
 env_logger = "0.9.0"
 fugit = "0.3"
