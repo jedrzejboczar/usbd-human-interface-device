@@ -25,6 +25,7 @@ num_enum = { version = "0.5", default-features = false }
 usbd-hid = { version = "0.6" }
 serde = { version = "1.0", default-features = false }
 ssmarshal = { version = "1.0", default-features = false }
+bitfield = "0.14"
 
 [dev-dependencies]
 env_logger = "0.9.0"

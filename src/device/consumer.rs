@@ -30,26 +30,19 @@ pub const MULTIPLE_CODE_REPORT_DESCRIPTOR: &[u8] = &[
 ];
 
 /// Consumer control report descriptor - Four `u16` consumer control usage codes as an array (8 bytes)
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Default, PackedStruct)]
-#[packed_struct(endian = "lsb", size_bytes = "8")]
-pub struct MultipleConsumerReport {
-    #[packed_field(ty = "enum", element_size_bytes = "2")]
-    pub codes: [Consumer; 4],
-}
-
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 #[repr(C, packed)]
-pub struct MultipleConsumerReportNew {
+pub struct MultipleConsumerReport {
     pub codes: [u16; 4],
 }
 
 // Manual implementation as usbd-hid-macros does not support non-u8 arrays
-impl usbd_hid::descriptor::SerializedDescriptor for MultipleConsumerReportNew {
+impl usbd_hid::descriptor::SerializedDescriptor for MultipleConsumerReport {
     fn desc() -> &'static [u8] {
         MULTIPLE_CODE_REPORT_DESCRIPTOR
     }
 }
-impl serde::ser::Serialize for MultipleConsumerReportNew {
+impl serde::ser::Serialize for MultipleConsumerReport {
     fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
 where
         S: serde::ser::Serializer,
@@ -63,7 +56,7 @@ where
         s.end()
     }
 }
-impl usbd_hid::descriptor::AsInputReport for MultipleConsumerReportNew {}
+impl usbd_hid::descriptor::AsInputReport for MultipleConsumerReport {}
 
 ///Fixed functionality consumer control report descriptor
 ///
@@ -79,29 +72,6 @@ impl usbd_hid::descriptor::AsInputReport for MultipleConsumerReportNew {}
 /// * Bit 5 - Volume Increment
 /// * Bit 6 - Volume Decrement
 /// * Bit 7 - Reserved
-#[rustfmt::skip]
-pub const FIXED_FUNCTION_REPORT_DESCRIPTOR: &[u8] = &[
-    0x05, 0x0C, //        Usage Page (Consumer Devices)
-    0x09, 0x01, //        Usage (Consumer Control)
-    0xA1, 0x01, //        Collection (Application)
-    0x05, 0x0C, //            Usage Page (Consumer Devices)
-    0x15, 0x00, //            Logical Minimum (0)
-    0x25, 0x01, //            Logical Maximum (1)
-    0x75, 0x01, //            Report Size (1)
-    0x95, 0x07, //            Report Count (7)
-    0x09, 0xB5, //            Usage (Scan Next Track)
-    0x09, 0xB6, //            Usage (Scan Previous Track)
-    0x09, 0xB7, //            Usage (Stop)
-    0x09, 0xCD, //            Usage (Play/Pause)
-    0x09, 0xE2, //            Usage (Mute)
-    0x09, 0xE9, //            Usage (Volume Increment)
-    0x09, 0xEA, //            Usage (Volume Decrement)
-    0x81, 0x02, //            Input (Data,Var,Abs,NWrp,Lin,Pref,NNul,Bit)
-    0x95, 0x01, //            Report Count (1)
-    0x81, 0x01, //            Input (Const,Ary,Abs)
-    0xC0, //        End Collection
-];
-
 // TODO: support names of more usage codes in usbd-hid-macros
 #[gen_hid_descriptor(
     (collection = APPLICATION, usage_page = CONSUMER, usage = CONSUMER_CONTROL) = {
@@ -120,28 +90,8 @@ pub const FIXED_FUNCTION_REPORT_DESCRIPTOR: &[u8] = &[
     }
 )]
 #[derive(Default, Eq, PartialEq)]
-pub struct FixedFunctionReportNew {
-    pub codes: u8,
-}
-
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, PackedStruct)]
-#[packed_struct(endian = "lsb", bit_numbering = "lsb0", size_bytes = "1")]
 pub struct FixedFunctionReport {
-    #[packed_field(bits = "0")]
-    pub next: bool,
-    #[packed_field(bits = "1")]
-    pub previous: bool,
-    #[packed_field(bits = "2")]
-    pub stop: bool,
-    #[packed_field(bits = "3")]
-    pub play_pause: bool,
-    #[packed_field(bits = "4")]
-    pub mute: bool,
-    #[packed_field(bits = "5")]
-    pub volume_increment: bool,
-    #[packed_field(bits = "6")]
-    pub volume_decrement: bool,
+    pub codes: u8,
 }
 
 pub struct ConsumerControlInterface<'a, B: UsbBus> {
@@ -257,7 +207,7 @@ mod tests {
 
     #[test]
     fn multiple_consumer_report_ser() {
-        let report = MultipleConsumerReportNew { codes: [0x0299, 0x1AB, 0x029b, 0x029c] };
+        let report = MultipleConsumerReport { codes: [0x0299, 0x1AB, 0x029b, 0x029c] };
         let mut buf = [0u8; 8];
         let size = serialize(&mut buf, &report).unwrap();
         assert_eq!(size, 8);
@@ -266,7 +216,7 @@ mod tests {
 
     #[test]
     fn fixed_function_report_ser() {
-        let report = FixedFunctionReportNew {
+        let report = FixedFunctionReport {
             codes: 0b00100100, // Stop, VolumeIncrement
         };
         let mut buf = [0u8; 1];
@@ -298,6 +248,6 @@ mod tests {
             0x81, 0x03, //            Input (Const,Var,Abs)
             0xC0, //        End Collection
         ];
-        assert_eq!(FixedFunctionReportNew::desc(), expected);
+        assert_eq!(FixedFunctionReport::desc(), expected);
     }
 }
