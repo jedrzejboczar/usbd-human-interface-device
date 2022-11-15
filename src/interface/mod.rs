@@ -1,7 +1,8 @@
 //! Abstract Human Interface Device Interfaces
 use core::marker::PhantomData;
 use frunk::{HCons, HNil, ToRef};
-use packed_struct::prelude::*;
+use serde::Serialize;
+use ssmarshal::serialize;
 use usb_device::bus::{InterfaceNumber, StringIndex, UsbBus, UsbBusAllocator};
 use usb_device::class_prelude::DescriptorWriter;
 
@@ -12,13 +13,11 @@ use crate::hid_class::descriptor::{
 pub mod managed;
 pub mod raw;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PackedStruct)]
-#[packed_struct(endian = "lsb", size_bytes = 7)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct HidDescriptorBody {
     bcd_hid: u16,
     country_code: u8,
     num_descriptors: u8,
-    #[packed_field(ty = "enum", size_bytes = "1")]
     descriptor_type: DescriptorType,
     descriptor_length: u16,
 }
@@ -73,15 +72,15 @@ pub trait InterfaceClass<'a> {
                 descriptor_len
             );
         } else {
-            HidDescriptorBody {
+            let mut buf = [0u8; 7];
+            serialize(&mut buf, &HidDescriptorBody {
                 bcd_hid: SPEC_VERSION_1_11,
                 country_code: COUNTRY_CODE_NOT_SUPPORTED,
                 num_descriptors: 1,
                 descriptor_type: DescriptorType::Report,
                 descriptor_length: descriptor_len as u16,
-            }
-            .pack()
-            .expect("Failed to pack HidDescriptor")
+            }).expect("Failed to pack HidDescriptor");
+            buf
         }
     }
 }

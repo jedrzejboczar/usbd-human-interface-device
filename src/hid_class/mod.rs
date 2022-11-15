@@ -8,7 +8,6 @@ use descriptor::*;
 use frunk::hlist::{HList, Selector};
 use frunk::{HCons, HNil};
 use log::{error, info, trace, warn};
-use packed_struct::prelude::*;
 use usb_device::class_prelude::*;
 use usb_device::control::Recipient;
 use usb_device::control::Request;
@@ -20,7 +19,7 @@ pub mod prelude;
 #[cfg(test)]
 mod test;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PrimitiveEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum HidRequest {
     GetReport = 0x01,
@@ -31,7 +30,7 @@ pub enum HidRequest {
     SetProtocol = 0x0B,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, PrimitiveEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum UsbPacketSize {
     Bytes8 = 8,
@@ -125,8 +124,10 @@ impl<'a, B, InterfaceList: InterfaceHList<'a>> UsbHidClass<B, InterfaceList> {
 impl<B: UsbBus, I> UsbHidClass<B, I> {
     fn get_descriptor(transfer: ControlIn<B>, interface: &dyn InterfaceClass<'_>) {
         let request: &Request = transfer.request();
-        match DescriptorType::from_primitive((request.value >> 8) as u8) {
-            Some(DescriptorType::Report) => {
+        const REPORT: u8 = DescriptorType::Report as u8;
+        const HID: u8 = DescriptorType::Hid as u8;
+        match (request.value >> 8) as u8 {
+            REPORT => {
                 match transfer.accept_with(interface.report_descriptor()) {
                     Err(e) => error!("Failed to send report descriptor - {:?}", e),
                     Ok(_) => {
@@ -134,7 +135,7 @@ impl<B: UsbBus, I> UsbHidClass<B, I> {
                     }
                 }
             }
-            Some(DescriptorType::Hid) => {
+            HID => {
                 let mut buffer = [0; 9];
                 buffer[0] = buffer.len() as u8;
                 buffer[1] = DescriptorType::Hid as u8;
@@ -205,12 +206,16 @@ where
             request.value
         );
 
-        match HidRequest::from_primitive(request.request) {
-            Some(HidRequest::SetReport) => {
+        const SET_REPORT: u8 = HidRequest::SetReport as u8;
+        const SET_IDLE: u8 = HidRequest::SetIdle as u8;
+        const SET_PROTOCOL: u8 = HidRequest::SetProtocol as u8;
+
+        match request.request {
+            SET_REPORT => {
                 interface.set_report(transfer.data()).ok();
                 transfer.accept().ok();
             }
-            Some(HidRequest::SetIdle) => {
+            SET_IDLE => {
                 if request.length != 0 {
                     warn!(
                         "Expected SetIdle to have length 0, received {:X}",
@@ -221,21 +226,30 @@ where
                 interface.set_idle((request.value & 0xFF) as u8, (request.value >> 8) as u8);
                 transfer.accept().ok();
             }
-            Some(HidRequest::SetProtocol) => {
+            SET_PROTOCOL => {
                 if request.length != 0 {
                     warn!(
                         "Expected SetProtocol to have length 0, received {:X}",
                         request.length
                     );
                 }
-                if let Some(protocol) = HidProtocol::from_primitive((request.value & 0xFF) as u8) {
-                    interface.set_protocol(protocol);
-                    transfer.accept().ok();
-                } else {
-                    error!(
-                        "Unable to set protocol, unsupported value:{:X}",
-                        request.value
-                    );
+                const BOOT: u8 = 0x00;
+                const REPORT: u8 = 0x01;
+                match (request.value & 0xFF) as u8 {
+                    BOOT => {
+                        interface.set_protocol(HidProtocol::Boot);
+                        transfer.accept().ok();
+                    },
+                    REPORT => {
+                        interface.set_protocol(HidProtocol::Report);
+                        transfer.accept().ok();
+                    },
+                    _ => {
+                        error!(
+                            "Unable to set protocol, unsupported value:{:X}",
+                            request.value
+                        );
+                    }
                 }
             }
             _ => {
@@ -291,8 +305,12 @@ where
                 }
                 let interface = interface.unwrap();
 
-                match HidRequest::from_primitive(request.request) {
-                    Some(HidRequest::GetReport) => {
+                const GET_REPORT: u8 = HidRequest::GetReport as u8;
+                const GET_IDLE: u8 = HidRequest::GetIdle as u8;
+                const GET_PROTOCOL: u8 = HidRequest::GetProtocol as u8;
+
+                match request.request {
+                    GET_REPORT => {
                         let mut data = [0_u8; 64];
                         if let Ok(n) = interface.get_report(&mut data) {
                             if n != transfer.request().length as usize {
@@ -311,7 +329,7 @@ where
                             }
                         }
                     }
-                    Some(HidRequest::GetIdle) => {
+                    GET_IDLE => {
                         if request.length != 1 {
                             warn!(
                                 "Expected GetIdle to have length 1, received {:X}",
@@ -326,7 +344,7 @@ where
                             Ok(_) => info!("Get Idle for ID{:X}: {:X}", report_id, idle),
                         }
                     }
-                    Some(HidRequest::GetProtocol) => {
+                    GET_PROTOCOL => {
                         if request.length != 1 {
                             warn!(
                                 "Expected GetProtocol to have length 1, received {:X}",

@@ -6,7 +6,6 @@
 use core::hash::Hash;
 use num_enum::FromPrimitive;
 use num_enum::IntoPrimitive;
-use packed_struct::prelude::*;
 
 // Notes for converting .upg files to rust enum
 // * Trim header
@@ -27,7 +26,6 @@ use packed_struct::prelude::*;
     PartialEq,
     Ord,
     PartialOrd,
-    PrimitiveEnum,
     Hash,
     IntoPrimitive,
     FromPrimitive,
@@ -132,7 +130,6 @@ impl Default for Leds {
     PartialEq,
     Ord,
     PartialOrd,
-    PrimitiveEnum,
     Hash,
     IntoPrimitive,
     FromPrimitive,
@@ -543,7 +540,6 @@ impl Default for Consumer {
     Ord,
     PartialOrd,
     Hash,
-    PrimitiveEnum,
     IntoPrimitive,
     FromPrimitive,
 )]
@@ -629,7 +625,6 @@ impl Default for Desktop {
     Ord,
     Hash,
     PartialOrd,
-    PrimitiveEnum,
     IntoPrimitive,
     FromPrimitive,
 )]
@@ -691,7 +686,6 @@ impl Default for Game {
     Ord,
     PartialOrd,
     Hash,
-    PrimitiveEnum,
     IntoPrimitive,
     FromPrimitive,
 )]
@@ -894,7 +888,6 @@ impl Default for Keyboard {
     Ord,
     Hash,
     PartialOrd,
-    PrimitiveEnum,
     IntoPrimitive,
     FromPrimitive,
 )]
@@ -978,7 +971,6 @@ impl Default for Simulation {
     Ord,
     PartialOrd,
     Hash,
-    PrimitiveEnum,
     IntoPrimitive,
     FromPrimitive,
 )]
