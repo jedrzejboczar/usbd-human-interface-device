@@ -4,7 +4,7 @@ use core::default::Default;
 use delegate::delegate;
 use embedded_time::duration::Milliseconds;
 use log::error;
-use packed_struct::prelude::*;
+use ssmarshal::serialize;
 use usb_device::bus::{InterfaceNumber, StringIndex, UsbBus};
 use usb_device::class_prelude::DescriptorWriter;
 use usbd_hid::descriptor::generator_prelude::*;
@@ -89,19 +89,20 @@ pub struct BootMouseInterface<'a, B: UsbBus> {
 
 impl<'a, B: UsbBus> BootMouseInterface<'a, B> {
     pub fn write_report(&self, report: &BootMouseReport) -> Result<(), UsbHidError> {
-        let data = report.pack().map_err(|e| {
-            error!("Error packing BootMouseReport: {:?}", e);
+        let mut data = [0u8; core::mem::size_of::<BootMouseReport>()];
+        let size = serialize(&mut data, report).map_err(|e| {
+            error!("Error packing MultipleConsumerReport: {:?}", e);
             UsbHidError::SerializationError
         })?;
         self.inner
-            .write_report(&data)
+            .write_report(&data[..size])
             .map(|_| ())
             .map_err(UsbHidError::from)
     }
 
     pub fn default_config() -> WrappedInterfaceConfig<Self, RawInterfaceConfig<'a>> {
         WrappedInterfaceConfig::new(
-            RawInterfaceBuilder::new(BOOT_MOUSE_REPORT_DESCRIPTOR)
+            RawInterfaceBuilder::new(BootMouseReport::desc())
                 .boot_device(InterfaceProtocol::Mouse)
                 .description("Mouse")
                 .in_endpoint(UsbPacketSize::Bytes8, Milliseconds(10))
@@ -143,19 +144,20 @@ pub struct WheelMouseInterface<'a, B: UsbBus> {
 
 impl<'a, B: UsbBus> WheelMouseInterface<'a, B> {
     pub fn write_report(&self, report: &WheelMouseReport) -> Result<(), UsbHidError> {
-        let data = report.pack().map_err(|e| {
-            error!("Error packing WheelMouseReport: {:?}", e);
+        let mut data = [0u8; core::mem::size_of::<WheelMouseReport>()];
+        let size = serialize(&mut data, report).map_err(|e| {
+            error!("Error packing MultipleConsumerReport: {:?}", e);
             UsbHidError::SerializationError
         })?;
         self.inner
-            .write_report(&data)
+            .write_report(&data[..size])
             .map(|_| ())
             .map_err(UsbHidError::from)
     }
 
     pub fn default_config() -> WrappedInterfaceConfig<Self, RawInterfaceConfig<'a>> {
         WrappedInterfaceConfig::new(
-            RawInterfaceBuilder::new(WHEEL_MOUSE_REPORT_DESCRIPTOR)
+            RawInterfaceBuilder::new(WheelMouseReport::desc())
                 .boot_device(InterfaceProtocol::Mouse)
                 .description("Wheel Mouse")
                 .in_endpoint(UsbPacketSize::Bytes8, Milliseconds(10))

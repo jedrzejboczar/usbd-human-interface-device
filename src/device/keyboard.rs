@@ -1,13 +1,14 @@
 //!HID keyboards
 
+use bitfield::bitfield;
 use delegate::delegate;
 use embedded_time::duration::Milliseconds;
-use packed_struct::prelude::*;
+use serde::{Serialize, Deserialize};
 use usb_device::class_prelude::*;
-use usb_device::UsbError;
 use usbd_hid::descriptor::generator_prelude::*;
 
 use crate::hid_class::prelude::*;
+use crate::interface::managed::InputReportBuf;
 use crate::interface::managed::{ManagedInterface, ManagedInterfaceConfig};
 use crate::interface::{InterfaceClass, WrappedInterface, WrappedInterfaceConfig};
 use crate::page::Keyboard;
@@ -52,7 +53,7 @@ where
     ) -> WrappedInterfaceConfig<Self, ManagedInterfaceConfig<'a, BootKeyboardReport>> {
         WrappedInterfaceConfig::new(
             ManagedInterfaceConfig::new(
-                RawInterfaceBuilder::new(BOOT_KEYBOARD_REPORT_DESCRIPTOR)
+                RawInterfaceBuilder::new(BootKeyboardReport::desc())
                     .boot_device(InterfaceProtocol::Keyboard)
                     .description("Keyboard")
                     .idle_default(Milliseconds(500))
@@ -127,8 +128,12 @@ pub struct BootKeyboardReport {
     pub keys: [u8; 6],
 }
 
-/// State of HID keyboard LEDs
+impl InputReportBuf for BootKeyboardReport {
+    type Buf = [u8; 1 + 1 + 6];
+}
+
 bitfield! {
+    /// State of HID keyboard LEDs
     #[derive(Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
     pub struct KeyboardLedsReport(u8);
     pub num_lock, set_num_lock: 0;
@@ -147,14 +152,14 @@ impl BootKeyboardReport {
         let mut i = 0;
         for k in keys.into_iter() {
             match k {
-                Keyboard::RightGui => report.modifier |= 1 << 0,
-                Keyboard::RightAlt => report.modifier |= 1 << 1,
-                Keyboard::RightShift => report.modifier |= 1 << 2,
-                Keyboard::RightCtrl => report.modifier |= 1 << 3,
-                Keyboard::LeftGui => report.modifier |= 1 << 4,
-                Keyboard::LeftAlt => report.modifier |= 1 << 5,
-                Keyboard::LeftShift => report.modifier |= 1 << 6,
-                Keyboard::LeftCtrl => report.modifier |= 1 << 7,
+                Keyboard::LeftControl =>  report.modifier |= 1 << 0,
+                Keyboard::LeftShift =>    report.modifier |= 1 << 1,
+                Keyboard::LeftAlt =>      report.modifier |= 1 << 2,
+                Keyboard::LeftGUI =>      report.modifier |= 1 << 3,
+                Keyboard::RightControl => report.modifier |= 1 << 4,
+                Keyboard::RightShift =>   report.modifier |= 1 << 5,
+                Keyboard::RightAlt =>     report.modifier |= 1 << 6,
+                Keyboard::RightGUI =>     report.modifier |= 1 << 7,
                 Keyboard::NoEventIndicated => {}
                 Keyboard::ErrorRollOver | Keyboard::POSTFail | Keyboard::ErrorUndefine => {
                     if !error {
@@ -174,7 +179,7 @@ impl BootKeyboardReport {
                     } else {
                         error = true;
                         i = report.keys.len();
-                        report.keys.fill(Keyboard::ErrorRollOver);
+                        report.keys.fill(Keyboard::ErrorRollOver.into());
                     }
                 }
             }
@@ -211,6 +216,10 @@ pub struct NKROBootKeyboardReport {
     pub nkro_keys: [u8; 17],
 }
 
+impl InputReportBuf for NKROBootKeyboardReport {
+    type Buf = [u8; 1 + 1 + 6 + 17];
+}
+
 impl NKROBootKeyboardReport {
     pub fn new<K: IntoIterator<Item = Keyboard>>(keys: K) -> Self {
         let mut report = Self::default();
@@ -219,14 +228,14 @@ impl NKROBootKeyboardReport {
         let mut i = 0;
         for k in keys.into_iter() {
             match k {
-                Keyboard::RightGui => report.modifier |= 1 << 0,
-                Keyboard::RightAlt => report.modifier |= 1 << 1,
-                Keyboard::RightShift => report.modifier |= 1 << 2,
-                Keyboard::RightCtrl => report.modifier |= 1 << 3,
-                Keyboard::LeftGui => report.modifier |= 1 << 4,
-                Keyboard::LeftAlt => report.modifier |= 1 << 5,
-                Keyboard::LeftShift => report.modifier |= 1 << 6,
-                Keyboard::LeftCtrl => report.modifier |= 1 << 7,
+                Keyboard::LeftControl =>  report.modifier |= 1 << 0,
+                Keyboard::LeftShift =>    report.modifier |= 1 << 1,
+                Keyboard::LeftAlt =>      report.modifier |= 1 << 2,
+                Keyboard::LeftGUI =>      report.modifier |= 1 << 3,
+                Keyboard::RightControl => report.modifier |= 1 << 4,
+                Keyboard::RightShift =>   report.modifier |= 1 << 5,
+                Keyboard::RightAlt =>     report.modifier |= 1 << 6,
+                Keyboard::RightGUI =>     report.modifier |= 1 << 7,
                 Keyboard::NoEventIndicated => {}
                 Keyboard::ErrorRollOver | Keyboard::POSTFail | Keyboard::ErrorUndefine => {
                     report.nkro_keys[0] |= 1 << k as u8;
@@ -302,7 +311,7 @@ where
     ) -> WrappedInterfaceConfig<Self, ManagedInterfaceConfig<'a, NKROBootKeyboardReport>> {
         WrappedInterfaceConfig::new(
             ManagedInterfaceConfig::new(
-                RawInterfaceBuilder::new(NKRO_BOOT_KEYBOARD_REPORT_DESCRIPTOR)
+                RawInterfaceBuilder::new(NKROBootKeyboardReport::desc())
                     .description("NKRO Keyboard")
                     .boot_device(InterfaceProtocol::Keyboard)
                     .idle_default(Milliseconds(500))

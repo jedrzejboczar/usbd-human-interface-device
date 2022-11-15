@@ -3,7 +3,7 @@
 use delegate::delegate;
 use embedded_time::duration::Milliseconds;
 use log::error;
-use packed_struct::prelude::*;
+use ssmarshal::serialize;
 use usb_device::class_prelude::*;
 use usb_device::UsbError;
 use usbd_hid::descriptor::generator_prelude::*;
@@ -11,7 +11,6 @@ use usbd_hid::descriptor::generator_prelude::*;
 use crate::hid_class::prelude::*;
 use crate::interface::raw::{RawInterface, RawInterfaceConfig};
 use crate::interface::{InterfaceClass, WrappedInterface, WrappedInterfaceConfig};
-use crate::page::Consumer;
 
 ///Consumer control report descriptor - Four `u16` consumer control usage codes as an array (8 bytes)
 #[rustfmt::skip]
@@ -100,11 +99,12 @@ pub struct ConsumerControlInterface<'a, B: UsbBus> {
 
 impl<'a, B: UsbBus> ConsumerControlInterface<'a, B> {
     pub fn write_report(&self, report: &MultipleConsumerReport) -> usb_device::Result<usize> {
-        let data = report.pack().map_err(|e| {
+        let mut data = [0u8; core::mem::size_of::<MultipleConsumerReport>()];
+        let size = serialize(&mut data, report).map_err(|e| {
             error!("Error packing MultipleConsumerReport: {:?}", e);
             UsbError::ParseError
         })?;
-        self.inner.write_report(&data)
+        self.inner.write_report(&data[..size])
     }
 
     pub fn default_config() -> WrappedInterfaceConfig<Self, RawInterfaceConfig<'a>> {
@@ -153,16 +153,17 @@ pub struct ConsumerControlFixedInterface<'a, B: UsbBus> {
 
 impl<'a, B: UsbBus> ConsumerControlFixedInterface<'a, B> {
     pub fn write_report(&self, report: &FixedFunctionReport) -> usb_device::Result<usize> {
-        let data = report.pack().map_err(|e| {
+        let mut data = [0u8; core::mem::size_of::<FixedFunctionReport>()];
+        let size = serialize(&mut data, report).map_err(|e| {
             error!("Error packing MultipleConsumerReport: {:?}", e);
             UsbError::ParseError
         })?;
-        self.inner.write_report(&data)
+        self.inner.write_report(&data[..size])
     }
 
     pub fn default_config() -> WrappedInterfaceConfig<Self, RawInterfaceConfig<'a>> {
         WrappedInterfaceConfig::new(
-            RawInterfaceBuilder::new(FIXED_FUNCTION_REPORT_DESCRIPTOR)
+            RawInterfaceBuilder::new(FixedFunctionReport::desc())
                 .description("Consumer Control")
                 .in_endpoint(UsbPacketSize::Bytes8, Milliseconds(50))
                 .unwrap()
@@ -203,7 +204,6 @@ impl<'a, B: UsbBus> WrappedInterface<'a, B, RawInterface<'a, B>>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ssmarshal::serialize;
 
     #[test]
     fn multiple_consumer_report_ser() {
