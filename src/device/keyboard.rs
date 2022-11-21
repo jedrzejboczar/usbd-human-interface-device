@@ -30,12 +30,9 @@ where
         }
     }
 
-    pub fn write_report<K: IntoIterator<Item = Keyboard>>(
-        &self,
-        keys: K,
-    ) -> Result<(), UsbHidError> {
+    pub fn write_report(&self, report: &BootKeyboardReport) -> Result<(), UsbHidError> {
         self.inner
-            .write_report(&BootKeyboardReport::new(keys))
+            .write_report(report)
             .map(|_| ())
     }
 
@@ -413,12 +410,9 @@ where
         }
     }
 
-    pub fn write_report<K: IntoIterator<Item = Keyboard>>(
-        &self,
-        keys: K,
-    ) -> Result<(), UsbHidError> {
+    pub fn write_report(&self, report: &NKROBootKeyboardReport) -> Result<(), UsbHidError> {
         self.inner
-            .write_report(&NKROBootKeyboardReport::new(keys))
+            .write_report(report)
             .map(|_| ())
     }
 
